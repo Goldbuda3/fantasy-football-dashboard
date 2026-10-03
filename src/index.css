@@ -9,6 +9,9 @@
   --orange: #f0a26a;
   --raised: #2a2f38;
   --line: #2f343d;
+  /* Matchup colors: kept in sync with SOFT/TOUGH/SURFACE in src/stats.js */
+  --soft: #62c995;
+  --tough: #d9822b;
 
   font-family: 'Roboto', 'Segoe UI', system-ui, sans-serif;
   color: var(--text);

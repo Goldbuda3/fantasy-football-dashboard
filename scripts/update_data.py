@@ -1,9 +1,10 @@
-"""Pull nflverse weekly player stats, store them in SQLite, and export JSON for the dashboard.
+"""Pull nflverse weekly player stats and the schedule, store them in SQLite, and export JSON for the dashboard.
 
 Usage:  python scripts/update_data.py [--season 2026]
 
 Re-pulls the whole season each run (one small parquet file) and replaces that season's rows,
 so nflverse's after-the-fact stat corrections are picked up along with the newest week.
+The schedule is stored without nflverse's betting columns (spreads, totals, moneylines).
 """
 
 import argparse
@@ -61,7 +62,22 @@ CREATE TABLE IF NOT EXISTS player_games (
     pts_ppr      REAL    NOT NULL,
     PRIMARY KEY (season, week, player_id)
 );
+
+CREATE TABLE IF NOT EXISTS games (
+    season     INTEGER NOT NULL,
+    week       INTEGER NOT NULL,
+    game_id    TEXT    PRIMARY KEY,
+    gameday    TEXT    NOT NULL,
+    gametime   TEXT,
+    away_team  TEXT    NOT NULL,
+    home_team  TEXT    NOT NULL,
+    away_score INTEGER,
+    home_score INTEGER
+);
 """
+
+# Only what the dashboard needs. Deliberately leaves out every betting column.
+SCHEDULE_COLUMNS = ["season", "week", "game_id", "gameday", "gametime", "away_team", "home_team", "away_score", "home_score"]
 
 
 def load_season(season: int) -> pl.DataFrame:
@@ -108,16 +124,23 @@ def load_season(season: int) -> pl.DataFrame:
     ).sort("week", "opponent", "position", "player")
 
 
-def write_db(df: pl.DataFrame, season: int) -> None:
+def load_schedule(season: int) -> pl.DataFrame:
+    games = nfl.load_schedules(seasons=[season])
+    return games.filter(pl.col("game_type") == "REG").select(SCHEDULE_COLUMNS).sort("week", "gameday", "gametime")
+
+
+def replace_rows(conn: sqlite3.Connection, table: str, df: pl.DataFrame, season: int) -> None:
+    conn.execute(f"DELETE FROM {table} WHERE season = ?", (season,))
+    placeholders = ", ".join("?" * len(df.columns))
+    conn.executemany(f"INSERT INTO {table} ({', '.join(df.columns)}) VALUES ({placeholders})", df.rows())
+
+
+def write_db(df: pl.DataFrame, schedule: pl.DataFrame, season: int) -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(DB_PATH) as conn:
         conn.executescript(SCHEMA)
-        conn.execute("DELETE FROM player_games WHERE season = ?", (season,))
-        placeholders = ", ".join("?" * len(df.columns))
-        conn.executemany(
-            f"INSERT INTO player_games ({', '.join(df.columns)}) VALUES ({placeholders})",
-            df.rows(),
-        )
+        replace_rows(conn, "player_games", df, season)
+        replace_rows(conn, "games", schedule, season)
 
 
 def write_json(season: int) -> None:
@@ -132,6 +155,11 @@ def write_json(season: int) -> None:
         )
         columns = [d[0] for d in cur.description]
         rows = cur.fetchall()
+        games = conn.execute(
+            "SELECT week, away_team, home_team, gameday, gametime, away_score, home_score FROM games"
+            " WHERE season = ? ORDER BY week, gameday, gametime, game_id",
+            (season,),
+        ).fetchall()
 
     JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -139,6 +167,8 @@ def write_json(season: int) -> None:
         "updated": datetime.now(timezone.utc).isoformat(timespec="minutes"),
         "columns": columns,
         "rows": rows,
+        "schedule_columns": ["week", "away", "home", "gameday", "gametime", "away_score", "home_score"],
+        "schedule": games,
     }
     JSON_PATH.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
 
@@ -151,9 +181,13 @@ def main() -> None:
     df = load_season(season)
     if df.is_empty():
         raise SystemExit(f"No regular-season stats found for {season}.")
-    write_db(df, season)
+    schedule = load_schedule(season)
+    write_db(df, schedule, season)
     write_json(season)
-    print(f"{season}: {df.height} player-games through week {df['week'].max()} -> {DB_PATH.name}, {JSON_PATH.name}")
+    print(
+        f"{season}: {df.height} player-games through week {df['week'].max()}, {schedule.height} scheduled games"
+        f" -> {DB_PATH.name}, {JSON_PATH.name}"
+    )
 
 
 if __name__ == "__main__":

@@ -4,12 +4,28 @@ Live at **[joaquinvargas.me/fantasy-football-dashboard](https://joaquinvargas.me
 
 Shows how every NFL defense holds up against QBs, RBs, WRs and TEs this season, with a drill-down to every player who scored against a given defense.
 
-- **Defense vs. position grid:** fantasy points allowed per game, with the median under each average. ▲/▼ flags a defense whose average is being skewed by one outlier game. Sortable and color-coded (green = soft matchup, orange = tough).
-- **Scoring toggle:** Standard, Half PPR and PPR.
-- **Games filter:** each defense's last 3 or last 5 games, or the full season.
+Two layouts, switching at 640px wide:
+
+- **Desktop: defense vs. position grid.** All 32 defenses against QB, RB, WR and TE, one number per cell. Sortable, and colored green for soft matchups and burnt orange for tough ones. A dot marks an average skewed by one outlier game (hover for the median). Click a defense to open its details in a side panel.
+- **Phone: ranked list.** Pick a position, then see all 32 defenses ranked. Each row has a bar for points per game, a tick for the median, and a line with vs. expected and targets/carries. Tap a defense to open its details in a bottom sheet.
+
+Both layouts share:
+
+- **Scoring:** Standard, Half PPR and PPR.
+- **Games:** each defense's last 3 or last 5 games, or the full season.
+- **Metrics:** points per game, median, vs. expected, targets and carries allowed per game.
 - **vs. expected:** strength-of-schedule adjustment. Each player's points against a defense are compared with his average in his *other* games this season. Positive means the defense allows more than those players usually score.
-- **Targets and carries** allowed per game by position.
-- **Drill-down:** click a defense to see every player who scored against it, week by week.
+- **Defense details:** per-position tiles with league rank (tap one to filter), then every player who scored against that defense, week by week.
+
+Three more tabs use the nflverse schedule:
+
+- **Week N:** every game in the upcoming week. Each offense gets the rank of the defense it faces at QB, RB, WR and TE (#1 = allows the most points). The Defenses grid and phone list also show each defense's next opponent.
+- **Schedule:** schedule strength for the rest of the season, or just the fantasy playoffs (weeks 15–17). For each offense and position: how many points per game its remaining opponents allow, compared with the league average, plus a week-by-week strip of opponents colored by matchup.
+- **Players:** search a QB, RB, WR or TE to see his next opponent and how that defense ranks against his position, his remaining schedule, and his game log.
+
+All matchup ranks follow the scoring and games filters, so "last 3" ranks defenses by their recent form.
+
+Green and burnt orange were chosen because they stay distinguishable under all three common types of color blindness, and the orange is darker, so lightness separates them too.
 
 ## How it works
 
@@ -18,7 +34,7 @@ nflverse ──► scripts/update_data.py ──► data/fantasy.db (SQLite) ─
 ```
 
 1. [`scripts/update_data.py`](scripts/update_data.py) downloads nflverse weekly player stats with [nflreadpy](https://github.com/nflverse/nflreadpy). Each player-game row includes the opponent, which is how points get credited to a defense.
-2. It stores raw stats (pass/rush/rec yards, TDs, receptions, targets, carries, INTs, fumbles lost) plus all three scoring formats in one SQLite table, `player_games`. It re-pulls the whole season each run and replaces that season's rows, so nflverse's after-the-fact stat corrections get picked up too.
+2. It stores raw stats (pass/rush/rec yards, TDs, receptions, targets, carries, INTs, fumbles lost) plus all three scoring formats in one SQLite table, `player_games`. The regular-season schedule (teams, dates, kickoff times, scores) goes in a second table, `games`. nflverse's schedule also has betting lines; the script deliberately leaves those out. It re-pulls the whole season each run and replaces that season's rows, so nflverse's after-the-fact stat corrections get picked up too.
 3. It exports the table to JSON. The React app loads that JSON and does all the filtering and aggregation in the browser ([`src/stats.js`](src/stats.js)).
 
 GitHub Pages only serves static files, which is why the database is exported to JSON instead of being queried live.
