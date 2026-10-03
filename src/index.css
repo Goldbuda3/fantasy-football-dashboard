@@ -1,0 +1,31 @@
+/* Same "Dusk" palette as joaquinvargas.me */
+:root {
+  --bg: #1a1d23;
+  --surface: #20242b;
+  --text: #e7e9ee;
+  --text-muted: #a9afba;
+  --green: #62c995;
+  --purple: #b8a5ff;
+  --orange: #f0a26a;
+
+  font-family: 'Roboto', 'Segoe UI', system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+}
+
+a:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
