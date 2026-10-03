@@ -15,17 +15,20 @@ export const WINDOWS = {
   all: 'Season',
 }
 
-export const VIEWS = {
-  points: { label: 'Points allowed', field: 'avg', note: 'Fantasy points allowed per game. Small number = median.' },
+// What a number in the grid or list can show. "avg" is the default everywhere.
+export const METRICS = {
+  avg: { label: 'Pts/G', long: 'Fantasy points allowed per game.' },
+  median: { label: 'Median', long: 'Median fantasy points allowed per game. Less swayed by one huge game.' },
   vsExp: {
     label: 'vs. expected',
-    field: 'vsExp',
     signed: true,
-    note: 'Points per game allowed above (+) or below (−) what those same players score in their other games.',
+    long: 'Points per game allowed above (+) or below (−) what those same players score in their other games.',
   },
-  targets: { label: 'Targets', field: 'targets', note: 'Targets allowed per game.' },
-  carries: { label: 'Carries', field: 'carries', note: 'Carries allowed per game.' },
+  targets: { label: 'Targets', long: 'Targets allowed per game.' },
+  carries: { label: 'Carries', long: 'Carries allowed per game.' },
 }
+
+export const formatMetric = (v, metric) => (METRICS[metric].signed && v > 0 ? '+' : '') + v.toFixed(1)
 
 export const TEAM_NAMES = {
   ARI: 'Arizona Cardinals', ATL: 'Atlanta Falcons', BAL: 'Baltimore Ravens', BUF: 'Buffalo Bills',
@@ -111,7 +114,7 @@ export function defenseSummary(scoredRows, span) {
     g.carries += r.carries
   }
 
-  return [...byDefense].map(([team, weeks]) => {
+  const summary = [...byDefense].map(([team, weeks]) => {
     const perGame = [...weeks].map((w) => totals.get(team)?.get(w) ?? {})
     const byPos = {}
     for (const pos of POSITIONS) {
@@ -128,6 +131,56 @@ export function defenseSummary(scoredRows, span) {
     }
     return { team, games: weeks.size, byPos }
   })
+
+  // Rank 1 = gives up the most points per game at that position (softest matchup).
+  for (const pos of POSITIONS) {
+    const ranked = [...summary].sort((a, b) => b.byPos[pos].avg - a.byPos[pos].avg)
+    ranked.forEach((d, i) => (d.byPos[pos].rank = i + 1))
+  }
+  return summary
+}
+
+// Mean and spread of one metric across all 32 defenses, for coloring a column.
+export function columnScale(summary, pos, metric) {
+  const xs = summary.map((d) => d.byPos[pos][metric])
+  const m = mean(xs)
+  return { mean: m, sd: Math.sqrt(mean(xs.map((x) => (x - m) ** 2))) }
+}
+
+// Soft matchups are green, tough ones burnt orange. The pair stays distinct under all three common
+// kinds of color blindness, and the orange is darker, so lightness separates them too.
+// Keep these in sync with --soft, --tough and --surface in index.css.
+const SOFT = [98, 201, 149]
+const TOUGH = [217, 130, 43]
+const SURFACE = [32, 36, 43]
+const TEXT = '#e7e9ee'
+const TEXT_ON_LIGHT = '#12151a'
+
+const luminance = (rgb) => {
+  const [r, g, b] = rgb.map((c) => {
+    c /= 255
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+// Background tinted by how far a value sits from the league average, plus whichever text color
+// reads better on it (strong greens need dark text).
+export function heat(value, { mean: m, sd }, strength = 0.75) {
+  const z = sd ? Math.max(-2, Math.min(2, (value - m) / sd)) : 0
+  const a = (Math.abs(z) / 2) * strength
+  const rgb = (z >= 0 ? SOFT : TOUGH).map((c, i) => Math.round(c * a + SURFACE[i] * (1 - a)))
+  const lum = luminance(rgb)
+  const darkText = (lum + 0.05) / (luminance([18, 21, 26]) + 0.05) > (luminance([231, 233, 238]) + 0.05) / (lum + 0.05)
+  return { background: `rgb(${rgb.join(',')})`, color: darkText ? TEXT_ON_LIGHT : TEXT }
+}
+
+// Solid bar color for the mobile list: never fully faded, so even average defenses show a bar.
+export function barColor(value, scale) {
+  const { mean: m, sd } = scale
+  const z = sd ? Math.max(-2, Math.min(2, (value - m) / sd)) : 0
+  const alpha = 0.35 + (Math.abs(z) / 2) * 0.65
+  return `rgb(${(z >= 0 ? SOFT : TOUGH).join(' ')} / ${alpha.toFixed(2)})`
 }
 
 // Every player who scored against one defense in the span, grouped by week (newest first).
@@ -147,8 +200,98 @@ export function defenseDrilldown(scoredRows, team, span) {
 export function statLine(r) {
   const parts = []
   if (r.pass_yds || r.pass_td || r.ints) parts.push(`${r.pass_yds} pass yds, ${r.pass_td} TD, ${r.ints} INT`)
-  if (r.carries || r.rush_yds || r.rush_td) parts.push(`${r.carries}-${r.rush_yds} rush${r.rush_td ? `, ${r.rush_td} TD` : ''}`)
-  if (r.targets || r.rec) parts.push(`${r.rec}/${r.targets}-${r.rec_yds} rec${r.rec_td ? `, ${r.rec_td} TD` : ''}`)
+  if (r.carries || r.rush_yds || r.rush_td) parts.push(`${r.carries} car, ${r.rush_yds} yds${r.rush_td ? `, ${r.rush_td} TD` : ''}`)
+  if (r.targets || r.rec) parts.push(`${r.rec}/${r.targets} rec, ${r.rec_yds} yds${r.rec_td ? `, ${r.rec_td} TD` : ''}`)
   if (r.fumbles_lost) parts.push(`${r.fumbles_lost} FL`)
   return parts.join(' · ') || '—'
+}
+
+// ---------- Schedule ----------
+
+export function parseSchedule({ schedule_columns: columns, schedule }) {
+  if (!schedule) return []
+  return schedule.map((values) => {
+    const g = Object.fromEntries(columns.map((c, i) => [c, values[i]]))
+    return { ...g, played: g.home_score !== null && g.away_score !== null }
+  })
+}
+
+// The week with the next unplayed game, or null once the regular season is over.
+export function upcomingWeek(schedule) {
+  const next = schedule.find((g) => !g.played)
+  return next ? next.week : null
+}
+
+// team -> week -> { opp, home, game }. A team with no entry for a week is on bye.
+export function opponentsByTeam(schedule) {
+  const out = new Map()
+  for (const g of schedule) {
+    for (const [team, opp, home] of [
+      [g.home, g.away, true],
+      [g.away, g.home, false],
+    ]) {
+      if (!out.has(team)) out.set(team, new Map())
+      out.get(team).set(g.week, { opp, home, game: g })
+    }
+  }
+  return out
+}
+
+export const vsLabel = (m) => (m ? `${m.home ? 'vs' : '@'} ${m.opp}` : 'BYE')
+
+export function kickoff(game) {
+  const day = new Date(`${game.gameday}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' })
+  if (!game.gametime) return day
+  const [h, m] = game.gametime.split(':').map(Number)
+  return `${day} ${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'} ET`
+}
+
+// How kind a team's remaining schedule is for one position: the average points per game its
+// opponents' defenses allow to that position, minus the league average. Positive = easier.
+// Only unplayed games in [fromWeek, toWeek] count.
+export function scheduleStrength(summary, opponents, pos, fromWeek, toWeek) {
+  const byTeam = new Map(summary.map((d) => [d.team, d]))
+  const league = mean(summary.map((d) => d.byPos[pos].avg))
+  return summary.map(({ team }) => {
+    const weeks = []
+    for (let w = fromWeek; w <= toWeek; w++) {
+      const m = opponents.get(team)?.get(w)
+      if (m?.game.played) continue
+      const def = m ? byTeam.get(m.opp) : null
+      weeks.push({ week: w, match: m ?? null, defense: def ? def.byPos[pos] : null })
+    }
+    const games = weeks.filter((w) => w.defense)
+    return {
+      team,
+      weeks,
+      games: games.length,
+      score: games.length ? mean(games.map((w) => w.defense.avg)) - league : 0,
+      avgRank: games.length ? mean(games.map((w) => w.defense.rank)) : null,
+    }
+  })
+}
+
+// One entry per player: latest team, position and per-game numbers under the current scoring.
+export function playerIndex(scoredRows) {
+  const players = new Map()
+  for (const r of scoredRows) {
+    const p = players.get(r.player_id) ?? { id: r.player_id, name: r.player, position: r.position, games: [] }
+    p.games.push(r)
+    players.set(r.player_id, p)
+  }
+  return [...players.values()].map((p) => {
+    const games = p.games.sort((a, b) => a.week - b.week)
+    const pts = games.map((g) => g.pts)
+    return { ...p, games, team: games.at(-1).team, avg: mean(pts), median: median(pts) }
+  })
+}
+
+// A team's next unplayed week from `week` on: its opponent, or match = null for a bye.
+export function nextMatch(opponents, team, week) {
+  for (let w = week; w <= 18; w++) {
+    const m = opponents.get(team)?.get(w)
+    if (!m) return { week: w, match: null }
+    if (!m.game.played) return { week: w, match: m }
+  }
+  return null
 }
