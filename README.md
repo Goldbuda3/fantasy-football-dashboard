@@ -70,6 +70,24 @@ To check the production build: `npm run build`, then `npm run preview`.
 Two GitHub Actions workflows handle this:
 
 - [`deploy.yml`](.github/workflows/deploy.yml) builds the app and publishes it to GitHub Pages on every push to `main`. One-time setup: repo **Settings → Pages → Source: GitHub Actions**.
-- [`refresh-data.yml`](.github/workflows/refresh-data.yml) runs every Tuesday at 13:00 UTC, since nflverse data can lag a day after Monday Night Football. It runs the update script, commits the new database and JSON, and starts a deploy. To refresh sooner, run it by hand from the **Actions** tab (**Refresh data → Run workflow**).
+- [`refresh-data.yml`](.github/workflows/refresh-data.yml) runs every Tuesday at 13:00 UTC, since nflverse data can lag a day after Monday Night Football. It runs the update script, commits the new database and JSON, and starts a deploy.
+
+### Refreshing the data by hand
+
+Use this to refresh between Tuesdays, or to test the workflow after changing it.
+
+1. Open the repo's **Actions** tab on GitHub.
+2. Click **Refresh data** in the left sidebar.
+3. Click **Run workflow**, keep the branch as `main`, and click the green **Run workflow** button.
+
+Then check:
+
+- **Refresh data** finishes green (about a minute).
+- A "Refresh NFL stats (…)" commit from `github-actions[bot]` appears on `main`.
+- A new **Deploy to GitHub Pages** run starts right after it. When it finishes, the date in the site's header shows today.
+
+If a run goes red, click into it to see which step failed and why.
+
+The bot commits to `main` every week, so run `git pull` before making local changes.
 
 `base` in [`vite.config.js`](vite.config.js) must match the repo name (`'/fantasy-football-dashboard/'`). If the repo is ever renamed, update it, or the live site loads a blank page.
