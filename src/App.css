@@ -1,12 +1,14 @@
-.placeholder {
-  max-width: 720px;
+.page {
+  max-width: 1080px;
   margin: 0 auto;
-  min-height: 100vh;
-  padding: 0 24px;
+  padding: 48px 16px 64px;
+}
+
+.page-head {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 16px;
+  gap: 12px;
+  margin-bottom: 28px;
 }
 
 .eyebrow {
@@ -16,25 +18,342 @@
   color: var(--purple);
 }
 
-.placeholder h1 {
+.page-head h1 {
   margin: 0;
-  font-size: clamp(36px, 6vw, 56px);
+  font-size: clamp(32px, 5vw, 48px);
   font-weight: 400;
   line-height: 1.1;
 }
 
 .lede {
   margin: 0;
-  font-size: 18px;
+  font-size: 17px;
+  color: var(--text-muted);
+  max-width: 64ch;
+}
+
+.muted {
   color: var(--text-muted);
 }
 
-.back {
-  align-self: flex-start;
-  margin-top: 8px;
-  color: var(--green);
-  text-decoration: none;
+.error {
+  color: var(--orange);
+}
+
+/* Controls */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 28px;
+  margin-bottom: 14px;
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.control-label,
+.field span {
+  font-size: 12px;
   font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.segmented button {
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.segmented button:hover {
+  color: var(--text);
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--raised);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.note {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--text-muted);
+  max-width: 80ch;
+}
+
+button:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+/* Tables */
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.num {
+  text-align: right;
+}
+
+.grid th:nth-child(n + 4) {
+  text-align: right;
+}
+
+.sort {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sort:hover,
+.sort.active {
+  color: var(--text);
+}
+
+.rank {
+  width: 1%;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.grid .team button {
+  font: inherit;
+  color: var(--text);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.grid .team .abbr {
+  font-weight: 700;
+  min-width: 3ch;
+}
+
+.grid .team .name {
+  color: var(--text-muted);
+}
+
+.grid .team button:hover .name {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.grid tr.selected td {
+  box-shadow: inset 0 1px 0 var(--purple), inset 0 -1px 0 var(--purple);
+}
+
+.grid tbody tr:hover td.team,
+.grid tbody tr:hover td.rank {
+  background: var(--raised);
+}
+
+.cell {
+  min-width: 72px;
+}
+
+.cell .value {
+  display: block;
+  font-weight: 500;
+}
+
+.cell .sub {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.flag {
+  color: var(--purple);
+  cursor: help;
+}
+
+@media (max-width: 640px) {
+  .grid .team .name {
+    display: none;
+  }
+}
+
+/* Drill-down */
+
+.drilldown {
+  margin-top: 40px;
+  scroll-margin-top: 16px;
+}
+
+.drill-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.drill-head h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 400;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+select {
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.card-pos {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--purple);
+}
+
+.card-main {
+  font-size: 28px;
+  margin: 2px 0 4px;
+}
+
+.card-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.week {
+  margin-top: 24px;
+}
+
+.week h3 {
+  margin: 0 0 10px;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.players td:first-child {
+  white-space: nowrap;
+}
+
+.line-col {
+  font-size: 13px;
+}
+
+.strong {
+  font-weight: 500;
+}
+
+.pos {
+  color: var(--green);
+}
+
+.neg {
+  color: var(--orange);
+}
+
+@media (max-width: 640px) {
+  .line-col {
+    display: none;
+  }
+}
+
+.foot {
+  margin-top: 48px;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.foot a {
+  color: var(--green);
+}
+
+.back {
+  display: inline-block;
+  margin-top: 12px;
+  font-weight: 500;
+  text-decoration: none;
 }
 
 .back:hover {
