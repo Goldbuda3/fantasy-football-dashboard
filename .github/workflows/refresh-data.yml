@@ -4,7 +4,7 @@ name: Refresh data
 
 on:
   schedule:
-    - cron: '0 13 * * 2' # Tuesdays 13:00 UTC (9am ET in season)
+    - cron: '0 12 * * 2' # Tuesdays 12:00 UTC (8am ET in season)
   workflow_dispatch:
 
 permissions:
