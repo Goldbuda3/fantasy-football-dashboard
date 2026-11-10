@@ -4,7 +4,9 @@ name: Refresh data
 
 on:
   schedule:
-    - cron: '0 12 * * 2' # Tuesdays 12:00 UTC (8am ET in season)
+    # Tuesdays 12:23 UTC: 7:23am ET / 6:23am CT in standard time (Nov–Mar), one hour later in daylight time.
+    # Cron is always UTC. The off-hour minute avoids GitHub's top-of-hour queue; runs can still start late.
+    - cron: '23 12 * * 2'
   workflow_dispatch:
 
 permissions:
